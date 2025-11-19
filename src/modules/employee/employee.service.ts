@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import {
   Employee,
@@ -8,13 +8,16 @@ import {
   Gender,
 } from './employee.dto';
 import { plainToInstance } from 'class-transformer';
-import { Department } from '../department/department.dto';
 
 @Injectable()
 export class EmployeeService {
+  private readonly logger = new Logger(this.constructor.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getById(id: string): Promise<Employee | null> {
+    this.logger.log(`id: ${id}`);
+
     const employee = await this.prisma.employees.findUnique({
       where: { emp_no: parseInt(id) },
       include: {
@@ -40,6 +43,8 @@ export class EmployeeService {
     });
 
     if (!employee) {
+      this.logger.warn(`There is no employee with id ${id}!`);
+
       return null;
     }
 
@@ -57,6 +62,8 @@ export class EmployeeService {
   }
 
   async list(offset: number, limit: number): Promise<Employees> {
+    this.logger.log(`offset: ${offset}, limit: ${limit}`);
+
     const total = await this.prisma.employees.count();
 
     const employees = await this.prisma.employees.findMany({
@@ -109,6 +116,8 @@ export class EmployeeService {
     offset: number,
     limit: number,
   ): Promise<Employees> {
+    this.logger.log(`departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`);
+
     const total = await this.prisma.employees.count({
       where: {
         dept_emp: {
@@ -180,6 +189,8 @@ export class EmployeeService {
     offset: number,
     limit: number,
   ): Promise<EmployeeLogs> {
+    this.logger.log(`departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`);
+
     const total = await this.prisma.dept_emp.count({
       where: {
         dept_no: departmentId,

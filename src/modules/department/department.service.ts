@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Department, DepartmentLog, Departments } from './department.dto';
 import { plainToInstance } from 'class-transformer';
@@ -6,6 +6,8 @@ import DataLoader from 'dataloader';
 
 @Injectable()
 export class DepartmentService {
+  private readonly logger = new Logger(this.constructor.name);
+
   private departmentLoader: DataLoader<string, Department | null>;
   constructor(private readonly prisma: PrismaService) {
     this.departmentLoader = new DataLoader<string, Department | null>(
@@ -18,6 +20,8 @@ export class DepartmentService {
   }
 
   async getByIds(ids: string[]): Promise<(Department | null)[]> {
+    this.logger.log(`ids: ${ids}`);
+
     const departments = await this.prisma.departments.findMany({
       where: {
         dept_no: {
@@ -42,6 +46,8 @@ export class DepartmentService {
   }
 
   async list(offset: number, limit: number): Promise<Departments> {
+    this.logger.log(`offset: ${offset}, limit: ${limit}`);
+
     const total = await this.prisma.departments.count();
 
     const departments = await this.prisma.departments.findMany({
@@ -67,6 +73,8 @@ export class DepartmentService {
     from: Date,
     to: Date,
   ): Promise<DepartmentLog[]> {
+    this.logger.log(`employeeId: ${employeeId}, from: ${from}, to: ${to}`)
+
     const dept_emps = await this.prisma.dept_emp.findMany({
       where: {
         AND: {

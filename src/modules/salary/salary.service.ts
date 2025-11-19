@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SalaryLog } from './salary.dto';
 import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class SalaryService {
+  private readonly logger = new Logger(this.constructor.name);
+  
   constructor(private readonly prisma: PrismaService) {}
 
   async listLogByEmployeeId(
@@ -12,6 +14,8 @@ export class SalaryService {
     from: Date,
     to: Date,
   ): Promise<SalaryLog[]> {
+    this.logger.log(`employeeId: ${employeeId}, from: ${from}, to: ${to}`)
+
     const salaries = await this.prisma.salaries.findMany({
       where: {
         AND: {
