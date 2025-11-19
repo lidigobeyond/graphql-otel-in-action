@@ -10,10 +10,6 @@ COPY prisma ./prisma
 
 RUN npm ci
 
-ARG DATABASE_URL
-
-RUN npm run prisma:generate
-
 RUN npm run build
 
 FROM node:20-alpine as runner

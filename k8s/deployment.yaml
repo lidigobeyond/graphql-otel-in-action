@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: hr-graphql-api
-        image: us-east1-docker.pkg.dev/newwwbi-playground/newwwbi-registry/hr-graphql-api:1.0
+        image: us-east1-docker.pkg.dev/newwwbi-playground/newwwbi-registry/hr-graphql-api:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
