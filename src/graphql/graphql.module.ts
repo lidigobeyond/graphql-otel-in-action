@@ -9,6 +9,8 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
       autoSchemaFile: true,
       useGlobalPrefix: true,
       csrfPrevention: false,
+      introspection: true,
+      playground: true,
     }),
   ],
 })
