@@ -1,0 +1,40 @@
+version: '3'
+services:
+  api:
+    build:
+      context:  .
+      dockerfile: ./Dockerfile
+    container_name: hr-graphql-api
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: 3000
+      DATABASE_URL: 'mysql://root:@db:3306/employees'
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mysql:8
+    container_name: mysql-db
+    ports:
+      - '3306:3306'
+      - '33060:33060'
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+    volumes:
+      - ./test_db/employees.sql:/docker-entrypoint-initdb.d/employees.sql
+      - ./test_db/load_departments.dump:/load_departments.dump
+      - ./test_db/load_employees.dump:/load_employees.dump
+      - ./test_db/load_dept_emp.dump:/load_dept_emp.dump
+      - ./test_db/load_dept_manager.dump:/load_dept_manager.dump
+      - ./test_db/load_titles.dump:/load_titles.dump
+      - ./test_db/load_salaries1.dump:/load_salaries1.dump
+      - ./test_db/load_salaries2.dump:/load_salaries2.dump
+      - ./test_db/load_salaries3.dump:/load_salaries3.dump
+      - ./test_db/show_elapsed.sql:/show_elapsed.sql
