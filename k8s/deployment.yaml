@@ -29,6 +29,14 @@ spec:
           value: "prod"
         - name: PORT
           value: "3000"
+        - name: NODE_OPTIONS
+          value: "--require @opentelemetry/auto-instrumentations-node/register"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://opentelemetry-collector.opentelemetry.svc.cluster.local:4318"
+        - name: OTEL_TRACES_EXPORTER
+          value: "otlp"
+        - name: OTEL_NODE_ENABLED_INSTRUMENTATIONS
+          value: "nestjs-core,graphql"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
