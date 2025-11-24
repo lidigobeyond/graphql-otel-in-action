@@ -2,7 +2,9 @@ FROM node:20-alpine as builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json tsconfig.json tsconfig.build.json nest-cli.json prisma.config.ts ./
+COPY package.json package-lock.json tsconfig.json tsconfig.build.json ./
+
+COPY nest-cli.json prisma.config.ts instrumentation.ts ./
 
 COPY src ./src
 
