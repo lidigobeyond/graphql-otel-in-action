@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Employee as EmployeeEntity, DeptEmp } from '../../typeorm/entities';
 import {
   Employee,
   EmployeeLog,
@@ -13,101 +15,88 @@ import { plainToInstance } from 'class-transformer';
 export class EmployeeService {
   private readonly logger = new Logger(this.constructor.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectRepository(EmployeeEntity)
+    private readonly employeeRepo: Repository<EmployeeEntity>,
+    @InjectRepository(DeptEmp)
+    private readonly deptEmpRepo: Repository<DeptEmp>,
+  ) {}
 
   async getById(id: string): Promise<Employee | null> {
     this.logger.log(`id: ${id}`);
 
-    const employee = await this.prisma.employees.findUnique({
-      where: { emp_no: parseInt(id) },
-      include: {
-        dept_emp: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        salaries: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        titles: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-      },
+    const employee = await this.employeeRepo.findOne({
+      where: { empNo: parseInt(id) },
+      relations: ['deptEmps', 'salaries', 'titles'],
     });
 
     if (!employee) {
       this.logger.warn(`There is no employee with id ${id}!`);
-
       return null;
     }
 
+    const latestDeptEmp = employee.deptEmps.sort(
+      (a, b) => new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+    )[0];
+    const latestSalary = employee.salaries.sort(
+      (a, b) => new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+    )[0];
+    const latestTitle = employee.titles.sort(
+      (a, b) => new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+    )[0];
+
     return plainToInstance(Employee, {
-      id: employee.emp_no,
-      birthDate: employee.birth_date,
-      firstName: employee.first_name,
-      lastName: employee.last_name,
+      id: employee.empNo,
+      birthDate: employee.birthDate,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
       gender: employee.gender === 'M' ? Gender.MALE : Gender.FEMALE,
-      hireDate: employee.hire_date,
-      departmentId: employee.dept_emp[0].dept_no,
-      title: employee.titles[0].title,
-      salary: employee.salaries[0].salary,
+      hireDate: employee.hireDate,
+      departmentId: latestDeptEmp?.deptNo,
+      title: latestTitle?.title,
+      salary: latestSalary?.salary,
     });
   }
 
   async list(offset: number, limit: number): Promise<Employees> {
     this.logger.log(`offset: ${offset}, limit: ${limit}`);
 
-    const total = await this.prisma.employees.count();
-
-    const employees = await this.prisma.employees.findMany({
+    const [employees, total] = await this.employeeRepo.findAndCount({
+      relations: ['deptEmps', 'salaries', 'titles'],
       skip: offset,
       take: limit,
-      include: {
-        dept_emp: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        salaries: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        titles: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-      },
     });
 
     return plainToInstance(Employees, {
       total,
       offset,
       limit,
-      items: employees.map((employee) =>
-        plainToInstance(Employee, {
-          id: employee.emp_no,
-          birthDate: employee.birth_date,
-          firstName: employee.first_name,
-          lastName: employee.last_name,
+      items: employees.map((employee) => {
+        const latestDeptEmp = employee.deptEmps.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+        const latestSalary = employee.salaries.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+        const latestTitle = employee.titles.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+
+        return plainToInstance(Employee, {
+          id: employee.empNo,
+          birthDate: employee.birthDate,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
           gender: employee.gender === 'M' ? Gender.MALE : Gender.FEMALE,
-          hireDate: employee.hire_date,
-          departmentId: employee.dept_emp[0].dept_no,
-          title: employee.titles[0].title,
-          salary: employee.salaries[0].salary,
-        }),
-      ),
+          hireDate: employee.hireDate,
+          departmentId: latestDeptEmp?.deptNo,
+          title: latestTitle?.title,
+          salary: latestSalary?.salary,
+        });
+      }),
     });
   }
 
@@ -116,71 +105,63 @@ export class EmployeeService {
     offset: number,
     limit: number,
   ): Promise<Employees> {
-    this.logger.log(`departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`);
+    this.logger.log(
+      `departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`,
+    );
 
-    const total = await this.prisma.employees.count({
-      where: {
-        dept_emp: {
-          some: {
-            dept_no: departmentId,
-            from_date: { lte: new Date() },
-            to_date: { gte: new Date() },
-          },
-        },
-      },
-    });
+    const now = new Date();
 
-    const employees = await this.prisma.employees.findMany({
-      where: {
-        dept_emp: {
-          some: {
-            dept_no: departmentId,
-            from_date: { lte: new Date() },
-            to_date: { gte: new Date() },
-          },
-        },
-      },
-      skip: offset,
-      take: limit,
-      include: {
-        dept_emp: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        salaries: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        titles: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-      },
-    });
+    const total = await this.employeeRepo
+      .createQueryBuilder('e')
+      .innerJoin('e.deptEmps', 'de')
+      .where('de.deptNo = :deptNo', { deptNo: departmentId })
+      .andWhere('de.fromDate <= :now', { now })
+      .andWhere('de.toDate >= :now', { now })
+      .getCount();
+
+    const employees = await this.employeeRepo
+      .createQueryBuilder('e')
+      .leftJoinAndSelect('e.deptEmps', 'de')
+      .leftJoinAndSelect('e.salaries', 's')
+      .leftJoinAndSelect('e.titles', 't')
+      .innerJoin('e.deptEmps', 'de_filter')
+      .where('de_filter.deptNo = :deptNo', { deptNo: departmentId })
+      .andWhere('de_filter.fromDate <= :now', { now })
+      .andWhere('de_filter.toDate >= :now', { now })
+      .skip(offset)
+      .take(limit)
+      .getMany();
 
     return plainToInstance(Employees, {
       total,
       offset,
       limit,
-      items: employees.map((employee) =>
-        plainToInstance(Employee, {
-          id: employee.emp_no,
-          birthDate: employee.birth_date,
-          firstName: employee.first_name,
-          lastName: employee.last_name,
+      items: employees.map((employee) => {
+        const latestDeptEmp = employee.deptEmps.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+        const latestSalary = employee.salaries.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+        const latestTitle = employee.titles.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+
+        return plainToInstance(Employee, {
+          id: employee.empNo,
+          birthDate: employee.birthDate,
+          firstName: employee.firstName,
+          lastName: employee.lastName,
           gender: employee.gender === 'M' ? Gender.MALE : Gender.FEMALE,
-          hireDate: employee.hire_date,
-          departmentId: employee.dept_emp[0].dept_no,
-          title: employee.titles[0].title,
-          salary: employee.salaries[0].salary,
-        }),
-      ),
+          hireDate: employee.hireDate,
+          departmentId: latestDeptEmp?.deptNo,
+          title: latestTitle?.title,
+          salary: latestSalary?.salary,
+        });
+      }),
     });
   }
 
@@ -189,62 +170,58 @@ export class EmployeeService {
     offset: number,
     limit: number,
   ): Promise<EmployeeLogs> {
-    this.logger.log(`departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`);
+    this.logger.log(
+      `departmentId: ${departmentId}, offset: ${offset}, limit: ${limit}`,
+    );
 
-    const total = await this.prisma.dept_emp.count({
-      where: {
-        dept_no: departmentId,
-      },
+    const total = await this.deptEmpRepo.count({
+      where: { deptNo: departmentId },
     });
 
-    const employees = await this.prisma.employees.findMany({
+    const deptEmps = await this.deptEmpRepo.find({
+      where: { deptNo: departmentId },
+      relations: [
+        'employee',
+        'employee.deptEmps',
+        'employee.salaries',
+        'employee.titles',
+      ],
+      order: { fromDate: 'DESC' },
       skip: offset,
       take: limit,
-      include: {
-        dept_emp: {
-          where: {
-            dept_no: departmentId,
-          },
-          orderBy: {
-            from_date: 'desc',
-          },
-        },
-        salaries: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-        titles: {
-          orderBy: {
-            from_date: 'desc',
-          },
-          take: 1,
-        },
-      },
     });
 
     return plainToInstance(EmployeeLogs, {
       total,
       offset,
       limit,
-      items: employees.map((employee) =>
-        plainToInstance(EmployeeLog, {
-          fromDate: employee.dept_emp[0].from_date,
-          toDate: employee.dept_emp[0].to_date,
+      items: deptEmps.map((deptEmp) => {
+        const employee = deptEmp.employee;
+        const latestSalary = employee.salaries.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+        const latestTitle = employee.titles.sort(
+          (a, b) =>
+            new Date(b.fromDate).getTime() - new Date(a.fromDate).getTime(),
+        )[0];
+
+        return plainToInstance(EmployeeLog, {
+          fromDate: deptEmp.fromDate,
+          toDate: deptEmp.toDate,
           employee: plainToInstance(Employee, {
-            id: employee.emp_no,
-            birthDate: employee.birth_date,
-            firstName: employee.first_name,
-            lastName: employee.last_name,
+            id: employee.empNo,
+            birthDate: employee.birthDate,
+            firstName: employee.firstName,
+            lastName: employee.lastName,
             gender: employee.gender === 'M' ? Gender.MALE : Gender.FEMALE,
-            hireDate: employee.hire_date,
-            departmentId: employee.dept_emp[0].dept_no,
-            title: employee.titles[0].title,
-            salary: employee.salaries[0].salary,
+            hireDate: employee.hireDate,
+            departmentId: deptEmp.deptNo,
+            title: latestTitle?.title,
+            salary: latestSalary?.salary,
           }),
-        }),
-      ),
+        });
+      }),
     });
   }
 }

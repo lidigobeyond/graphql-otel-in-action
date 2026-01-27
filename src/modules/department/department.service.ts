@@ -1,5 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In, Brackets } from 'typeorm';
+import {
+  Department as DepartmentEntity,
+  DeptEmp,
+} from '../../typeorm/entities';
 import { Department, DepartmentLog, Departments } from './department.dto';
 import { plainToInstance } from 'class-transformer';
 import DataLoader from 'dataloader';
@@ -9,9 +14,15 @@ export class DepartmentService {
   private readonly logger = new Logger(this.constructor.name);
 
   private departmentLoader: DataLoader<string, Department | null>;
-  constructor(private readonly prisma: PrismaService) {
+
+  constructor(
+    @InjectRepository(DepartmentEntity)
+    private readonly departmentRepo: Repository<DepartmentEntity>,
+    @InjectRepository(DeptEmp)
+    private readonly deptEmpRepo: Repository<DeptEmp>,
+  ) {
     this.departmentLoader = new DataLoader<string, Department | null>(
-      (keys: string[]) => this.getByIds(keys),
+      (keys: readonly string[]) => this.getByIds([...keys]),
     );
   }
 
@@ -22,25 +33,19 @@ export class DepartmentService {
   async getByIds(ids: string[]): Promise<(Department | null)[]> {
     this.logger.log(`ids: ${ids}`);
 
-    const departments = await this.prisma.departments.findMany({
-      where: {
-        dept_no: {
-          in: ids,
-        },
-      },
+    const departments = await this.departmentRepo.find({
+      where: { deptNo: In(ids) },
     });
 
     return ids.map((id) => {
-      const department = departments.find(
-        (department) => department.dept_no === id,
-      );
+      const department = departments.find((d) => d.deptNo === id);
       if (!department) {
         return null;
       }
 
       return plainToInstance(Department, {
-        id: department.dept_no,
-        name: department.dept_name,
+        id: department.deptNo,
+        name: department.deptName,
       });
     });
   }
@@ -48,9 +53,7 @@ export class DepartmentService {
   async list(offset: number, limit: number): Promise<Departments> {
     this.logger.log(`offset: ${offset}, limit: ${limit}`);
 
-    const total = await this.prisma.departments.count();
-
-    const departments = await this.prisma.departments.findMany({
+    const [departments, total] = await this.departmentRepo.findAndCount({
       skip: offset,
       take: limit,
     });
@@ -61,8 +64,8 @@ export class DepartmentService {
       limit,
       items: departments.map((department) =>
         plainToInstance(Department, {
-          id: department.dept_no,
-          name: department.dept_name,
+          id: department.deptNo,
+          name: department.deptName,
         }),
       ),
     };
@@ -73,41 +76,29 @@ export class DepartmentService {
     from: Date,
     to: Date,
   ): Promise<DepartmentLog[]> {
-    this.logger.log(`employeeId: ${employeeId}, from: ${from}, to: ${to}`)
+    this.logger.log(`employeeId: ${employeeId}, from: ${from}, to: ${to}`);
 
-    const dept_emps = await this.prisma.dept_emp.findMany({
-      where: {
-        AND: {
-          emp_no: parseInt(employeeId),
-          OR: [
-            {
-              from_date: {
-                gte: from,
-              },
-              to_date: {
-                lte: to,
-              },
-            },
-            {
-              to_date: {
-                lte: to,
-              },
-            },
-          ],
-        },
-      },
-      include: {
-        departments: true,
-      },
-    });
+    const deptEmps = await this.deptEmpRepo
+      .createQueryBuilder('de')
+      .leftJoinAndSelect('de.department', 'd')
+      .where('de.empNo = :empNo', { empNo: parseInt(employeeId) })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where('de.fromDate >= :from AND de.toDate <= :to', {
+            from,
+            to,
+          }).orWhere('de.toDate <= :to', { to });
+        }),
+      )
+      .getMany();
 
-    return dept_emps.map((dept_emp) =>
+    return deptEmps.map((deptEmp) =>
       plainToInstance(DepartmentLog, {
-        fromDate: dept_emp.from_date,
-        toDate: dept_emp.to_date,
+        fromDate: deptEmp.fromDate,
+        toDate: deptEmp.toDate,
         department: plainToInstance(Department, {
-          id: dept_emp.departments.dept_no,
-          name: dept_emp.departments.dept_name,
+          id: deptEmp.department.deptNo,
+          name: deptEmp.department.deptName,
         }),
       }),
     );

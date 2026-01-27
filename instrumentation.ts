@@ -6,6 +6,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { MySQL2Instrumentation } from '@opentelemetry/instrumentation-mysql2';
 
 const sdk = new NodeSDK({
   traceExporter: new OTLPTraceExporter({
@@ -24,6 +25,7 @@ const sdk = new NodeSDK({
     new HttpInstrumentation(),
     new ExpressInstrumentation(),
     new GraphQLInstrumentation(),
+    new MySQL2Instrumentation(),
   ],
 });
 

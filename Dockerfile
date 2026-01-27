@@ -4,11 +4,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json tsconfig.json tsconfig.build.json ./
 
-COPY nest-cli.json prisma.config.ts instrumentation.ts ./
+COPY nest-cli.json instrumentation.ts ./
 
 COPY src ./src
-
-COPY prisma ./prisma
 
 RUN npm ci
 

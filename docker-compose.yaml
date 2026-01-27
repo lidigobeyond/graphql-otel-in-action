@@ -8,7 +8,9 @@ services:
     ports:
       - '3000:3000'
     environment:
+      APP_ENV: 'local'
       PORT: 3000
+      NODE_OPTIONS: '--import ./dist/instrumentation.js'
       DATABASE_URL: 'mysql://root:@db:3306/employees'
     volumes:
       - ./src:/app/src

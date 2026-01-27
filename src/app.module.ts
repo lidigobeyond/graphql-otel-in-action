@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PrismaModule } from './prisma/prisma.module';
+import { TypeOrmConfigModule } from './typeorm/typeorm.module';
 import { GraphQLModule } from './graphql/graphql.module';
 import { DepartmentModule } from './modules/department/department.module';
 import { EmployeeModule } from './modules/employee/employee.module';
@@ -10,7 +10,7 @@ import { AppConfigModule } from './config/config.module';
 @Module({
   imports: [
     AppConfigModule,
-    PrismaModule,
+    TypeOrmConfigModule,
     GraphQLModule,
     DepartmentModule,
     EmployeeModule,
