@@ -7,16 +7,18 @@ import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { MySQL2Instrumentation } from '@opentelemetry/instrumentation-mysql2';
+import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
 
 const sdk = new NodeSDK({
+  serviceName: 'hr-graphql-api',
   traceExporter: new OTLPTraceExporter({
-    url: 'http://opentelemetry-collector.opentelemetry.svc.cluster.local:4318/v1/traces',
+    url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/traces`,
     headers: {},
   }),
   metricReaders: [
     new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter({
-        url: 'http://opentelemetry-collector.opentelemetry.svc.cluster.local:4318/v1/metrics',
+        url: `${process.env.OTEL_EXPORTER_OTLP_ENDPOINT}/v1/metrics`,
         headers: {},
       }),
     }),
@@ -24,6 +26,7 @@ const sdk = new NodeSDK({
   instrumentations: [
     new HttpInstrumentation(),
     new ExpressInstrumentation(),
+    new NestInstrumentation(),
     new GraphQLInstrumentation(),
     new MySQL2Instrumentation(),
   ],

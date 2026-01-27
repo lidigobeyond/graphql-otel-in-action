@@ -12,11 +12,15 @@ services:
       PORT: 3000
       NODE_OPTIONS: '--import ./dist/instrumentation.js'
       DATABASE_URL: 'mysql://root:@db:3306/employees'
+      OTEL_EXPORTER_OTLP_ENDPOINT: 'http://jaeger:4318'
     volumes:
       - ./src:/app/src
     depends_on:
       db:
         condition: service_healthy
+      jaeger:
+        condition: service_started
+
   db:
     image: mysql:8
     container_name: mysql-db
@@ -40,3 +44,13 @@ services:
       - ./test_db/load_salaries2.dump:/load_salaries2.dump
       - ./test_db/load_salaries3.dump:/load_salaries3.dump
       - ./test_db/show_elapsed.sql:/show_elapsed.sql
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - '16686:16686'  # Jaeger UI
+      - '4317:4317'    # OTLP gRPC
+      - '4318:4318'    # OTLP HTTP
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
