@@ -27,7 +27,11 @@ const sdk = new NodeSDK({
     new HttpInstrumentation(),
     new ExpressInstrumentation(),
     new NestInstrumentation(),
-    new GraphQLInstrumentation(),
+    new GraphQLInstrumentation({
+      depth: -1,
+      ignoreTrivialResolveSpans: true,
+      allowValues: true,
+    }),
     new MySQL2Instrumentation(),
   ],
 });
