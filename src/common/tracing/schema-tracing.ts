@@ -40,9 +40,9 @@ export function wrapResolversWithTracing(schema: GraphQLSchema): GraphQLSchema {
       }
 
       // @Query / @Mutation / @ResolveField: 커스텀 스팬으로 래핑
+      const spanName = `graphql.resolve ${type.name}.${field.name}`;
       const originalResolve = field.resolve;
       field.resolve = (source, args, context, info) => {
-        const spanName = `graphql.resolve ${buildFieldPath(info.path)}`;
         return tracer.startActiveSpan(spanName, (span) => {
           setSpanAttributes(span, info, args);
           try {
