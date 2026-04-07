@@ -19,6 +19,7 @@ import {
         entities: [Employee, Department, DeptEmp, DeptManager, Salary, Title],
         synchronize: false,
         logging: ['query', 'error', 'warn', 'info'],
+        ssl: { rejectUnauthorized: false },
       }),
       inject: [ConfigService],
     }),
