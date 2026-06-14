@@ -8,6 +8,7 @@ import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { MySQL2Instrumentation } from '@opentelemetry/instrumentation-mysql2';
 import { NestInstrumentation } from '@opentelemetry/instrumentation-nestjs-core';
+import { RuntimeNodeInstrumentation } from '@opentelemetry/instrumentation-runtime-node';
 
 const sdk = new NodeSDK({
   serviceName: 'hr-graphql-api',
@@ -33,6 +34,7 @@ const sdk = new NodeSDK({
       allowValues: true,
     }),
     new MySQL2Instrumentation(),
+    new RuntimeNodeInstrumentation(),
   ],
 });
 
