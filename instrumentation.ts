@@ -33,7 +33,15 @@ const sdk = new NodeSDK({
       ignoreTrivialResolveSpans: true,
       allowValues: true,
     }),
-    new MySQL2Instrumentation(),
+    new MySQL2Instrumentation({
+      maskStatement: true,
+      maskStatementHook(sql) {
+        return sql
+          .replace(/\b\d+\b/g, '?') // 숫자 리터럴 마스킹 (기본 동작) 
+          .replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, '?') // 문자열 리터럴 마스킹 (기본 동작)
+          .replace(/IN\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/gi, 'IN (?)'); // IN 절 정규화
+      },
+    }),
     new RuntimeNodeInstrumentation(),
   ],
 });
